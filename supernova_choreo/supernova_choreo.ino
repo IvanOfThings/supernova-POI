@@ -81,20 +81,33 @@ decode_results results;
 //   ENTER/SAVE:  0xFD906F     9:      0xFD58A7
 //   Back:        0xFD708F
 
-#define BTN_BRIGHT_UP    0xFD40BF
-#define BTN_BRIGHT_DOWN  0xFD00FF
-#define BTN_RESTART      0xFD807F
-#define BTN_BATTERY      0xFD20DF
-#define BTN_FASTER       0xFD805F
-#define BTN_SLOWER       0xFDB04F
-#define BTN_OFF          0xFD609F
-#define BTN_PATTERN_PREV 0xFD10EF
-#define BTN_PATTERN_NEXT 0xFD50AF
-#define BTN_NONE         -1
-#define BTN_AUTOPLAY     0XFD906F
+// Mapa mando de Lara
+//  Play/pause: 0xFFC23D    1: 0xFF30CF
+//  0:          0xFF6897    2: 0xFF18E7
+//  Vol +:      0xFFA857    3: 0xFF7A85
+//  Vol -:      0xFFE01F    4: 0xFF10EF
+//  EQ:         0xFF906F    5: 0xFF38C7
+//  CH+:        0xFFE21D    6: 0xFF5AA5
+//  CH:         0xFF629D    7: 0xFF42BD
+//  CH-:        0xFFA25D    8: 0xFF5AA5
+//  FW:         0xFF02FD    9: 0xFF52AD
+//  BW:         0xFF22DD    0: 0xFF6897
 
-#define BTN_7            0xFD18E7
-#define BTN_8            0xFD9867
+
+#define BTN_BRIGHT_UP    0xFFA857
+#define BTN_BRIGHT_DOWN  0xFFE01F
+#define BTN_RESTART      0xFFC23D
+#define BTN_BATTERY      0xFF906F
+#define BTN_FASTER       0xFFE21D
+#define BTN_SLOWER       0xFFA25D
+#define BTN_OFF          0xFF6897
+#define BTN_PATTERN_PREV 0xFF22DD
+#define BTN_PATTERN_NEXT 0xFF02FD
+#define BTN_NONE         -1
+#define BTN_AUTOPLAY     0xFF629D
+
+#define BTN_7            0xFF42BD
+#define BTN_8            0xFF5AA5
 
 // -------------------------------------------------------------------------
 
@@ -352,4 +365,3 @@ void loop() {
   strip.show(); // Refresh LEDs
   lastLineTime = t;
 }
-
