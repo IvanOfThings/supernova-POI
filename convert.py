@@ -18,7 +18,7 @@
 # --------------------------------------------------------------------------
 
 from PIL import Image
-import sys
+import sys, os, re
 
 # Establish peak and average current limits - a function of battery
 # capacity and desired run time.
@@ -77,67 +77,75 @@ def writeByte(n):
 numLEDs = 0
 images  = []
 
+prefix = ""
+listdir = sys.argv[1:]
 # Initial pass loads each image & tracks tallest size overall
+if (len(sys.argv)==2):
+	listdir = os.listdir(sys.argv[1])
+	prefix = sys.argv[1]
+exp_gif = re.compile('^([A-Za-z0-9_]+)(\.)(gif)$')
+exp_bmp = re.compile('^([A-Za-z0-9_]+)(\.)(bmp)$')
 
-for name in sys.argv[1:]: # For each image passed to script...
-	image        = Image.open(name)
-	image.pixels = image.load()
-	try:
-		# Determine if image is truecolor vs. colormapped.
-		# This next line throws an exception if > 256 colors:
-		image.colors = image.getcolors(256)
-		# However, in the no-exception case (256 colors or less),
-		# that doesn't necessarily mean it's a non-truecolor image
-		# yet, just that it has few colors.  Check the image type
-		# and if it's truecolor or similar, convert the image to
-		# a paletted mode so it can be more efficiently stored.
-		# Since there are few colors, this operation is lossless.
-		if (image.mode != '1' and image.mode != 'L' and
-		  image.mode != 'P'):
-			image = image.convert("P", palette="ADAPTIVE")
-			image.pixels = image.load()
+for name in listdir: # For each image passed to script...
+	if exp_gif.match(name) or exp_bmp.match(name) :
+		image        = Image.open(prefix+name)
+		image.pixels = image.load()
+		try:
+			# Determine if image is truecolor vs. colormapped.
+			# This next line throws an exception if > 256 colors:
 			image.colors = image.getcolors(256)
-		# image.colors is an unsorted list of tuples where each
-		# item is a pixel count and a color palette index.
-		# Unused palette indices (0 pixels) are not in list,
-		# so its length tells us the unique color count...
-		image.numColors = len(image.colors)
-		# The image & palette aren't necessarily optimally packed,
-		# e.g. might have a 216-color 'web safe' palette but only
-		# use a handful of colors.  In order to reduce the palette
-		# storage requirements, only the colors in use will be
-		# output.  The pixel indices in the image must be remapped
-		# to this new palette sequence...
-		remap = [0] * 256
-		for c in range(image.numColors): # For each color used...
-			# The original color index (image.colors[c][1])
-			# is reassigned to a sequential 'packed' index (c):
-			remap[image.colors[c][1]] = c
-		# Every pixel in image is then remapped through this table:
-		for y in range(image.size[1]):
-			for x in range(image.size[0]):
-				image.pixels[x, y] = remap[image.pixels[x, y]]
-		# The color palette associated with the image is still in
-		# its unpacked/unoptimal order; image pixel values no longer
-		# point to correct entries.  This is OK and we'll compensate
+			# However, in the no-exception case (256 colors or less),
+			# that doesn't necessarily mean it's a non-truecolor image
+			# yet, just that it has few colors.  Check the image type
+			# and if it's truecolor or similar, convert the image to
+			# a paletted mode so it can be more efficiently stored.
+			# Since there are few colors, this operation is lossless.
+			if (image.mode != '1' and image.mode != 'L' and
+			  image.mode != 'P'):
+				image = image.convert("P", palette="ADAPTIVE")
+				image.pixels = image.load()
+				image.colors = image.getcolors(256)
+			# image.colors is an unsorted list of tuples where each
+			# item is a pixel count and a color palette index.
+			# Unused palette indices (0 pixels) are not in list,
+			# so its length tells us the unique color count...
+			image.numColors = len(image.colors)
+			# The image & palette aren't necessarily optimally packed,
+			# e.g. might have a 216-color 'web safe' palette but only
+			# use a handful of colors.  In order to reduce the palette
+			# storage requirements, only the colors in use will be
+			# output.  The pixel indices in the image must be remapped
+			# to this new palette sequence...
+			remap = [0] * 256
+			for c in range(image.numColors): # For each color used...
+				# The original color index (image.colors[c][1])
+				# is reassigned to a sequential 'packed' index (c):
+				remap[image.colors[c][1]] = c
+			# Every pixel in image is then remapped through this table:
+			for y in range(image.size[1]):
+				for x in range(image.size[0]):
+					image.pixels[x, y] = remap[image.pixels[x, y]]
+			# The color palette associated with the image is still in
+			# its unpacked/unoptimal order; image pixel values no longer
+			# point to correct entries.  This is OK and we'll compensate
 		# for it later in the code.
-	except:                       # if getcolors(256) fails,
-		image.numColors = 257 # ...image is truecolor
-	image.name = name
-	image.bph  = image.size[1] # Byte-padded height (tweaked below)
-	images.append(image)
+		except:                       # if getcolors(256) fails,
+			image.numColors = 257 # ...image is truecolor
+		image.name = prefix+name
+		image.bph  = image.size[1] # Byte-padded height (tweaked below)
+		images.append(image)
 
-	# 1- and 4-bit images are padded to the next byte boundary.
-	# Image size not fully validated - on purpose - in case of quick
-	# test with an existing (but non-optimal) file.  If too big or too
-	# small for the LED strip, just wastes some PROGMEM space or some
-	# LEDs will be lit wrong, usually no biggie.
-	if image.numColors <= 2:    # 1 bit/pixel, use 8-pixel blocks
-		if image.bph & 7: image.bph += 8 - (image.bph & 7)
-	elif image.numColors <= 16: # 4 bits/pixel, use 2-pixel blocks
-		if image.bph & 1: image.bph += 1
+		# 1- and 4-bit images are padded to the next byte boundary.
+		# Image size not fully validated - on purpose - in case of quick
+		# test with an existing (but non-optimal) file.  If too big or too
+		# small for the LED strip, just wastes some PROGMEM space or some
+		# LEDs will be lit wrong, usually no biggie.
+		if image.numColors <= 2:    # 1 bit/pixel, use 8-pixel blocks
+			if image.bph & 7: image.bph += 8 - (image.bph & 7)
+		elif image.numColors <= 16: # 4 bits/pixel, use 2-pixel blocks
+			if image.bph & 1: image.bph += 1
 
-	if image.bph > numLEDs: numLEDs = image.bph
+		if image.bph > numLEDs: numLEDs = image.bph
 
 print "// Don't edit this file!  It's software-generated."
 print "// See convert.py script instead."
@@ -222,7 +230,7 @@ for imgNum, image in enumerate(images): # For each image in list...
 			  int(pow((lut[i][0]/255.0),gamma)*bR1+0.5),
 			  int(pow((lut[i][1]/255.0),gamma)*bG1+0.5),
 			  int(pow((lut[i][2]/255.0),gamma)*bB1+0.5)))
-			if i < (image.numColors - 1): print ","
+			if i < (image.numColors - 1): print (",")
 		print " };"
 		print 
 
@@ -339,6 +347,6 @@ for imgNum, image in enumerate(images): # For each image in list...
 	else:
 		print
 
-print "};"
-print 
-print "#define NUM_IMAGES (sizeof(images) / sizeof(images[0]))"
+print ("};")
+print ()
+print ("#define NUM_IMAGES (sizeof(images) / sizeof(images[0]))")
